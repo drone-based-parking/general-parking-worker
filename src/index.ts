@@ -127,6 +127,24 @@ export default {
             return c.json(results);
         });
         
+        app.get('/api/get-frame/:key', async (c) => {
+          try {
+            const key = decodeURIComponent(c.req.param('key'));
+            const object = await c.env.r2_parking.get(key);
+            
+            if (!object) {
+              return c.json({ error: 'Not found' }, 404);
+            }
+            
+            const headers = new Headers();
+            object.httpMetadata?.contentType && headers.set('Content-Type', object.httpMetadata.contentType);
+            
+            return new Response(object.body, { headers });
+          } catch (err: any) {
+            return c.json({ error: err?.message ?? String(err) }, 500);
+          }
+        });
+        
         app.post('/api/upload-frame', async (c) => {
           try {
             // Auto-detect content type if not provided
@@ -156,11 +174,11 @@ export default {
               return c.json({
                 success: true,
                 key,
-                url: `/api/get-frame/${encodeURIComponent(key)}`, // Optional: add a GET endpoint
+                url: `/api/get-frame/${encodeURIComponent(key)}`,
               });
             }
             
-            // Handle raw binary upload (your existing logic)
+            // Handle raw binary upload
             const url = new URL(c.req.url);
             const filename = url.searchParams.get('filename') || `frame-${Date.now()}`;
             
@@ -197,24 +215,7 @@ export default {
             return c.json({ success: false, error: err?.message ?? String(err) }, 500);
           }
         });
-        
-        app.get('/api/get-frame/:key', async (c) => {
-          try {
-            const key = decodeURIComponent(c.req.param('key'));
-            const object = await c.env.r2_parking.get(key);
-            
-            if (!object) {
-              return c.json({ error: 'Not found' }, 404);
-            }
-            
-            const headers = new Headers();
-            object.httpMetadata?.contentType && headers.set('Content-Type', object.httpMetadata.contentType);
-            
-            return new Response(object.body, { headers });
-          } catch (err: any) {
-            return c.json({ error: err?.message ?? String(err) }, 500);
-          }
-        });
+    
         
         return app.fetch(request, env, ctx);
     }
