@@ -127,9 +127,13 @@ export default {
             return c.json(results);
         });
         
-        app.get('/api/get-frame/:key', async (c) => {
+        app.get('/api/get-frame/*', async (c) => {
           try {
-            const key = decodeURIComponent(c.req.param('key'));
+            // Get everything after '/api/get-frame/'
+            const fullPath = c.req.path;
+            const key = fullPath.replace('/api/get-frame/', '');
+            
+            
             const object = await c.env.r2_parking.get(key);
             
             if (!object) {
