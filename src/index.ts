@@ -83,7 +83,15 @@ export default {
                 return c.json({ error: error.message }, 500);
             }
         });
+        
+        app.get('/api/lots', async (c) => {
+            const { results } = await env.DB
+                .prepare('SELECT id, name FROM lot')
+                .all();
 
+            return c.json(results);
+        });
+        
         return app.fetch(request, env, ctx);
     }
 } satisfies ExportedHandler<Env>;
