@@ -1,6 +1,7 @@
 import { Hono, Context, Next } from "hono";
 import { cors } from "hono/cors";
 import { handleRest } from './rest';
+import type { R2Bucket } from '@cloudflare/workers-types';
 
 export interface Env {
     DB: D1Database;
