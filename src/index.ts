@@ -5,6 +5,7 @@ import { handleRest } from './rest';
 export interface Env {
     DB: D1Database;
     SECRET: SecretsStoreSecret;
+    PARKING_BUCKET: R2Bucket;
 }
 
 // # List all users
