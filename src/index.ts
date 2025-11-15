@@ -129,32 +129,68 @@ export default {
         
         app.post('/api/upload-frame', async (c) => {
           try {
-            // 1) Get useful headers
-            const contentType = c.req.header('content-type') || 'application/octet-stream';
-        
-            // Optionally let the client pass ?filename=... in the URL
+            // Auto-detect content type if not provided
+            let contentType = c.req.header('content-type') || 'application/octet-stream';
+            
+            // Handle multipart/form-data for easier browser uploads
+            if (contentType.includes('multipart/form-data')) {
+              const formData = await c.req.formData();
+              const file = formData.get('file') as File;
+              
+              if (!file) {
+                return c.json({ success: false, error: 'No file provided' }, 400);
+              }
+              
+              const arrayBuffer = await file.arrayBuffer();
+              const body = new Uint8Array(arrayBuffer);
+              const filename = file.name || `frame-${Date.now()}`;
+              contentType = file.type || 'application/octet-stream';
+              
+              const timestamp = Date.now();
+              const key = `frames/${timestamp}-${filename}`;
+              
+              await c.env.r2_parking.put(key, body, {
+                httpMetadata: { contentType },
+              });
+              
+              return c.json({
+                success: true,
+                key,
+                url: `/api/get-frame/${encodeURIComponent(key)}`, // Optional: add a GET endpoint
+              });
+            }
+            
+            // Handle raw binary upload (your existing logic)
             const url = new URL(c.req.url);
-            const filename = url.searchParams.get('filename') || 'frame.jpg';
-        
-            // 2) Read the raw request body as bytes
+            const filename = url.searchParams.get('filename') || `frame-${Date.now()}`;
+            
+            // Try to infer content type from filename if generic
+            if (contentType === 'application/octet-stream' && filename) {
+              const ext = filename.split('.').pop()?.toLowerCase();
+              const mimeTypes: Record<string, string> = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'webp': 'image/webp',
+              };
+              contentType = mimeTypes[ext || ''] || contentType;
+            }
+            
             const arrayBuffer = await c.req.arrayBuffer();
             const body = new Uint8Array(arrayBuffer);
-        
-            // 3) Create a key in R2 (you can customize this pattern)
+            
             const timestamp = Date.now();
             const key = `frames/${timestamp}-${filename}`;
-        
-            // 4) Store in R2 with content type metadata
+            
             await c.env.r2_parking.put(key, body, {
-              httpMetadata: {
-                contentType,
-              },
+              httpMetadata: { contentType },
             });
-        
-            // 5) Return JSON with the key
+            
             return c.json({
               success: true,
               key,
+              url: `/api/get-frame/${encodeURIComponent(key)}`,
             });
           } catch (err: any) {
             console.error(err);
