@@ -35,9 +35,28 @@ export default {
         app.use('*', async (c, next) => {
             return cors()(c, next);
         })
+        
         app.get('/api/health', (c) => {
             return c.json({ status: 'ok' });
         });
+        
+        app.get('/api/r2-test', async (c) => {
+            const key = 'test/hello.txt';
+            const body = 'Hello from R2!';
+
+            // Write object to R2
+            await c.env.PARKING_BUCKET.put(key, body);
+
+            // Read it back
+            const obj = await c.env.PARKING_BUCKET.get(key);
+            const text = obj ? await obj.text() : null;
+
+            return c.json({
+                key,
+                value_read_back: text,
+            });
+        });
+        
         // Secret Store key value that we have set
         const secret = await env.SECRET.get();
 
