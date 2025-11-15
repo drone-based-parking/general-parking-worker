@@ -198,6 +198,24 @@ export default {
           }
         });
         
+        app.get('/api/get-frame/:key', async (c) => {
+          try {
+            const key = decodeURIComponent(c.req.param('key'));
+            const object = await c.env.r2_parking.get(key);
+            
+            if (!object) {
+              return c.json({ error: 'Not found' }, 404);
+            }
+            
+            const headers = new Headers();
+            object.httpMetadata?.contentType && headers.set('Content-Type', object.httpMetadata.contentType);
+            
+            return new Response(object.body, { headers });
+          } catch (err: any) {
+            return c.json({ error: err?.message ?? String(err) }, 500);
+          }
+        });
+        
         return app.fetch(request, env, ctx);
     }
 } satisfies ExportedHandler<Env>;
