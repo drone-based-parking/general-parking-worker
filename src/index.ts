@@ -99,17 +99,6 @@ export default {
 
             return c.json(results);
         });
-
-        app.get("/api/r2-test", async (c) => {
-            const key = `test-${Date.now()}.txt`;
-            const value = `Hello from R2 at ${new Date().toISOString()}`;
-            await c.env.R2_BUCKET.put(key, value);
-
-            return c.json({
-                message: "Wrote test object to R2",
-                key,
-            });
-        });
         
         return app.fetch(request, env, ctx);
     }
