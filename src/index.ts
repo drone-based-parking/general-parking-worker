@@ -42,20 +42,29 @@ export default {
         });
         
         app.get('/api/r2-test', async (c) => {
-            const key = 'test/hello.txt';
-            const body = 'Hello from R2!';
-
-            // Write object to R2
-            await c.env.PARKING_BUCKET.put(key, body);
-
-            // Read it back
-            const obj = await c.env.PARKING_BUCKET.get(key);
-            const text = obj ? await obj.text() : null;
-
-            return c.json({
-                key,
-                value_read_back: text,
-            });
+            try {
+                const key = 'test/hello.txt';
+                const body = 'Hello from R2 via Worker!';
+        
+                // Use the env from the outer fetch closure
+                await env.PARKING_BUCKET.put(key, body);
+        
+                const obj = await env.PARKING_BUCKET.get(key);
+                const text = obj ? await obj.text() : null;
+        
+                return c.json({
+                    key,
+                    value_read_back: text,
+                });
+            } catch (err: any) {
+                // Return the actual error so we can see what’s wrong
+                return c.json(
+                    {
+                        error: err?.message ?? String(err),
+                    },
+                    500
+                );
+            }
         });
         
         // Secret Store key value that we have set
