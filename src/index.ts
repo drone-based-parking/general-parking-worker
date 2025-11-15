@@ -30,17 +30,13 @@ export interface Env {
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         const app = new Hono<{ Bindings: Env }>();
-        const url = new URL(request.url);
-        if (url.pathname === "/api/health") {
-          return new Response(JSON.stringify({ status: "ok" }), {
-            headers: { "Content-Type": "application/json" },
-          });
-        }
         // Apply CORS to all routes
         app.use('*', async (c, next) => {
             return cors()(c, next);
         })
-
+        app.get('/api/health', (c) => {
+            return c.json({ status: 'ok' });
+        });
         // Secret Store key value that we have set
         const secret = await env.SECRET.get();
 
