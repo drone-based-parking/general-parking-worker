@@ -35,6 +35,21 @@ const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) => {
     return next();
 };
 
+const getEstDateFolder = () => {
+    const now = new Date();
+    // Use Intl to force 'America/New_York' timezone
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    
+    // Format is usually "MM/DD/YYYY" -> replace slashes with underscores
+    // Result: "06_01_2025"
+    return formatter.format(now).replace(/\//g, '_');
+};
+
 // Public Routes
 app.get('/api/health', (c) => {
     return c.json({ status: 'ok' });
@@ -122,9 +137,12 @@ app.get('/api/get-frame/*', async (c) => {
 
 app.post('/api/upload-frame', async (c) => {
     try {
+        // Generate the date folder based on EST
+        const dateFolder = getEstDateFolder();
+
         let contentType = c.req.header('content-type') || 'application/octet-stream';
 
-        // Multipart handling
+        // Handle Multipart (Forms)
         if (contentType.includes('multipart/form-data')) {
             const formData = await c.req.formData();
             const file = formData.get('file') as File;
@@ -139,7 +157,8 @@ app.post('/api/upload-frame', async (c) => {
             contentType = file.type || 'application/octet-stream';
 
             const timestamp = Date.now();
-            const key = `frames/${timestamp}-${filename}`;
+            // Update Key Structure: frames/MM_DD_YYYY/timestamp-filename
+            const key = `frames/${dateFolder}/${timestamp}-${filename}`;
 
             await c.env.r2_parking.put(key, body, {
                 httpMetadata: { contentType },
@@ -148,14 +167,16 @@ app.post('/api/upload-frame', async (c) => {
             return c.json({
                 success: true,
                 key,
+                // Ensure URL encoding handles the slashes correctly if needed by your client
                 url: `/api/get-frame/${key}`,
             });
         }
 
-        // Binary handling
+        // Handle Binary (Raw)
         const url = new URL(c.req.url);
         const filename = url.searchParams.get('filename') || `frame-${Date.now()}`;
 
+        // Infer content type for binary if generic
         if (contentType === 'application/octet-stream' && filename) {
             const ext = filename.split('.').pop()?.toLowerCase();
             const mimeTypes: Record<string, string> = {
@@ -172,7 +193,8 @@ app.post('/api/upload-frame', async (c) => {
         const body = new Uint8Array(arrayBuffer);
 
         const timestamp = Date.now();
-        const key = `frames/${timestamp}-${filename}`;
+        // Update Key Structure: frames/MM_DD_YYYY/timestamp-filename
+        const key = `frames/${dateFolder}/${timestamp}-${filename}`;
 
         await c.env.r2_parking.put(key, body, {
             httpMetadata: { contentType },
@@ -181,6 +203,7 @@ app.post('/api/upload-frame', async (c) => {
         return c.json({
             success: true,
             key,
+            // We use encodeURIComponent to ensure the slashes in the key don't break the URL path parsing
             url: `/api/get-frame/${encodeURIComponent(key)}`,
         });
     } catch (err: any) {
@@ -188,6 +211,7 @@ app.post('/api/upload-frame', async (c) => {
         return c.json({ success: false, error: err?.message ?? String(err) }, 500);
     }
 });
+
 
 // Default Export
 export default app;
