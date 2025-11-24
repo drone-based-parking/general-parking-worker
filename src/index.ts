@@ -214,6 +214,66 @@ app.post('/api/upload-frame', async (c) => {
     }
 });
 
+app.get('/api/list-days', async (c) => {
+    try {
+        // We ask R2 to list everything starting with 'frames/' 
+        // but stop at the next '/' (delimiter).
+        const list = await c.env.r2_parking.list({
+            prefix: 'frames/',
+            delimiter: '/'
+        });
+
+        // R2 returns "folders" in the delimitedPrefixes array.
+        // Example value: "frames/11_24_2025/"
+        const folders = list.delimitedPrefixes.map((prefix) => {
+            // Remove "frames/" from the start and "/" from the end
+            return prefix.replace('frames/', '').replace('/', '');
+        });
+
+        return c.json({ 
+            success: true, 
+            days: folders 
+        });
+    } catch (err: any) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+
+// 2. Return all frames within a specific day
+app.get('/api/list-frames/:day', async (c) => {
+    try {
+        const day = c.req.param('day'); // e.g., "11_24_2025"
+        
+        // Construct the prefix to look for
+        const prefix = `frames/${day}/`;
+        
+        // List objects. Note: If you have >1000 images, 
+        // you would need to handle pagination (cursor) here.
+        const list = await c.env.r2_parking.list({
+            prefix: prefix
+        });
+
+        // Map the R2 objects to a clean JSON format
+        const frames = list.objects.map((obj) => {
+            return {
+                key: obj.key,
+                size: obj.size,
+                uploaded: obj.uploaded,
+                // Helper URL to view it immediately
+                url: `/api/get-frame/${obj.key}`
+            };
+        });
+
+        return c.json({ 
+            success: true, 
+            day: day,
+            count: frames.length,
+            frames: frames 
+        });
+    } catch (err: any) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
 
 // Default Export
 export default app;
