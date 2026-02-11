@@ -229,7 +229,11 @@ app.post('/api/upload-frame', async (c) => {
 
         const timestamp = Date.now();
         // Update Key Structure: frames/MM_DD_YYYY/timestamp-filename
-        const key = `frames/${dateFolder}/${timestamp}-${filename}`;
+        // uuid added to avoid filename collision
+        const uuid = crypto.randomUUID().split('-')[0];
+
+        // Key: frames/MM_DD_YYYY/timestamp-uuid-filename
+        const key = `frames/${dateFolder}/${timestamp}-${uuid}-${filename}`;
 
         await c.env.r2_parking.put(key, body, {
             httpMetadata: { contentType },
